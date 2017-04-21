@@ -22,6 +22,7 @@ limitations under the License.
 #include <memory>
 #include <exception>
 #include <algorithm>
+#include <ctime>
 
 #include <Windows.h>
 #include "Shader.h"
@@ -626,6 +627,7 @@ struct Particle {
 	Model* model;
 	glm::mat4 transform;
 	glm::vec3 velocity;
+	glm::vec3 rotation;
 };
 
 // a class for encapsulating building and rendering an RGB cube
@@ -644,10 +646,14 @@ struct ColorCubeScene {
 	int co2Count = 0;
 
 	GLuint shaderProg;
-	std::vector<Particle> particles;
+	std::vector<Particle*> particles;
 	Particle factoryParticle;
 
-	glm::mat4 chimney = glm::mat4(1.0f, 0, 0, 0, 0, 1.0f, 0, 0, 0, 0, 1.0f, 0, 0, -1, -10, 1.0f);
+	std::clock_t timer;
+	bool win = false;
+	bool lose = false;
+
+	glm::mat4 chimney = glm::mat4(1.0f, 0, 0, 0, 0, 1.0f, 0, 0, 0, 0, 1.0f, 0, 0, -1, -15, 1.0f);
 
 	// VBOs for the cube's vertices and normals
 
@@ -661,39 +667,90 @@ public:
 		o2 = new Model("../Project1-assets/o2/o2.obj");
 		factoryParticle.model = factory;
 		factoryParticle.transform = glm::scale(chimney, glm::vec3(0.2f, 0.2f, 0.2f));
-		for (int i = 0; i < 5; i++) {
-			Particle p;
-			p.model = co2;
-			p.transform = glm::scale(chimney, glm::vec3(0.4f, 0.4f, 0.4f));
-			p.velocity = glm::vec3(rand() % 2, abs(rand() % 3), rand() % 2);
+		/*for (int i = 0; i < 5; i++) {
+			Particle* p = new Particle();
+			p->model = co2;
+			p->transform = glm::scale(chimney, glm::vec3(0.4f, 0.4f, 0.4f));
+			p->velocity = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.0f), fmod(rand(), 100.0f) - 50)) / 100.0f;
+			p->rotation = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50));
 			particles.push_back(p);
 		}
+		co2Count = 5;*/
+
+		timer = std::clock();
 	}
 
 	void render(const mat4 & projection, const mat4 & modelview) {
 		GLuint uProjection = glGetUniformLocation(shaderProg, "projection");
 		GLuint uModelview = glGetUniformLocation(shaderProg, "modelview");
+		GLuint uTransMat = glGetUniformLocation(shaderProg, "transMat");
 		glUniformMatrix4fv(uProjection, 1, GL_FALSE, (&projection[0][0]));
 		glUniformMatrix4fv(uModelview, 1, GL_FALSE, &(modelview[0][0]));
 
 		glUseProgram(shaderProg);
 
-		GLuint uTransMat = glGetUniformLocation(shaderProg, "transMat");
-		//glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &(glm::mat4(0.3, 0, 0, 0, 0, 0.3, 0, 0, 0, 0, 0.3, 0, 0, -1, -10, 1.0f)[0][0]));
 		glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &factoryParticle.transform[0][0]);
 		factoryParticle.model->Draw(shaderProg, projection, modelview);
 
-		for (std::vector<Particle>::iterator it = particles.begin(); it != particles.end(); it++) {
-			glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &(it->transform[0][0]));
-			it->model->Draw(shaderProg, projection, modelview);
+		for (Particle* particle : particles) {
+			glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &(particle->transform[0][0]));
+			particle->model->Draw(shaderProg, projection, modelview);
 		}
 
 		update();
 	}
 
 	void update() {
-		for (std::vector<Particle>::iterator it = particles.begin(); it != particles.end(); it++) {
-			it->transform = glm::translate(it->transform, it->velocity);
+		for (Particle* particle : particles) {
+			//Update position
+			particle->transform[3] += glm::vec4(particle->velocity.x, particle->velocity.y, particle->velocity.z , 0.0f);
+			particle->transform = glm::rotate(particle->transform, 0.05f, glm::vec3(particle->rotation.x, particle->rotation.y, particle->rotation.z));
+			//cout << particle->transform[3].z << endl;
+			//Check walls
+			if (particle->transform[3][0] < -10 || particle->transform[3][0] > 10) {
+				particle->velocity.x *= -1;
+			}
+			if (particle->transform[3][1] < -10 || particle->transform[3][1] > 10) {
+				particle->velocity.y *= -1;
+			}
+			if (particle->transform[3][2] < -25 || particle->transform[3][2] > -5) {
+				particle->velocity.z *= -1;
+			}
+		}
+		
+		if (!win) {
+			//Add new particles if a second has passed
+			std::clock_t currentTime = std::clock();
+			/*if ((currentTime - timer) / CLOCKS_PER_SEC >= 1) {
+				Particle* p = new Particle();
+				p->model = co2;
+				p->transform = glm::scale(chimney, glm::vec3(0.4f, 0.4f, 0.4f));
+				p->velocity = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.0f), fmod(rand(), 100.0f) - 50)) / 100.0f;
+				p->rotation = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50));
+				particles.push_back(p);
+
+				co2Count++;
+				timer = currentTime;
+			}*/
+		}
+
+		if (co2Count > 10 && !lose) {
+			for (int i = 0; i < 100; i++) {
+				Particle* p = new Particle();
+				p->model = co2;
+				p->transform = glm::translate(glm::vec3(fmod(rand(), 20) - 10, fmod(rand(), 20) - 10, fmod(rand(), 20) - 25));
+				p->transform = glm::scale(p->transform, glm::vec3(0.4f, 0.4f, 0.4f));
+				p->velocity = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.0f), fmod(rand(), 100.0f) - 50)) / 100.0f;
+				p->rotation = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50));
+				particles.push_back(p);
+			}
+
+			lose = true;
+		}
+
+		if (co2Count == 0 && !lose) {
+			glClearColor(0.0f, 0.2f, 0.8f, 0.0f);
+			win = true;
 		}
 	}
 };
