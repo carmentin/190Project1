@@ -27,9 +27,10 @@ limitations under the License.
 #include <Windows.h>
 #include "Shader.h"
 #include "Model.h"
-#include "Line.h"
 
 #define __STDC_FORMAT_MACROS 1
+#define LEFT 0
+#define RIGHT 1
 
 #define FAIL(X) throw std::runtime_error(X)
 
@@ -656,6 +657,12 @@ struct ColorCubeScene {
 
 	glm::mat4 chimney = glm::mat4(1.0f, 0, 0, 0, 0, 1.0f, 0, 0, 0, 0, 1.0f, 0, 0, -1, -15, 1.0f);
 
+	// For controller input
+	ovrTrackingState trackstate;
+	ovrPosef handPoses[2];
+	ovrInputState inputstate;
+	bool fingerTriggerPressed[2] = { false, false };
+
 	// VBOs for the cube's vertices and normals
 
 	const unsigned int GRID_SIZE{ 5 };
@@ -668,7 +675,7 @@ public:
 		o2 = new Model("../Project1-assets/o2/o2.obj");
 		factoryParticle.model = factory;
 		factoryParticle.transform = glm::scale(chimney, glm::vec3(0.2f, 0.2f, 0.2f));
-		for (int i = 0; i < 5; i++) {
+		/*for (int i = 0; i < 5; i++) {
 			Particle* p = new Particle();
 			p->model = co2;
 			p->transform = glm::scale(chimney, glm::vec3(0.4f, 0.4f, 0.4f));
@@ -676,12 +683,13 @@ public:
 			p->rotation = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50));
 			particles.push_back(p);
 		}
-		co2Count = 5;
-
+		co2Count = 5;*/	
 		timer = std::clock();
 	}
 
-	void render(const mat4 & projection, const mat4 & modelview) {
+	void render(const mat4 & projection, const mat4 & modelview, ovrSession session) {
+		getControllerData(session);
+
 		GLuint uProjection = glGetUniformLocation(shaderProg, "projection");
 		GLuint uModelview = glGetUniformLocation(shaderProg, "modelview");
 		GLuint uTransMat = glGetUniformLocation(shaderProg, "transMat");
@@ -699,14 +707,58 @@ public:
 		}
 
 		update();
+	} 
+
+	void getControllerData(ovrSession session) {
+		
+		// Position + Orientation
+		double displayMidpointSeconds = ovr_GetPredictedDisplayTime(session, 0);
+		trackstate = ovr_GetTrackingState(session, displayMidpointSeconds, ovrTrue);
+
+		handPoses[LEFT] = trackstate.HandPoses[ovrHand_Left].ThePose;
+		handPoses[RIGHT] = trackstate.HandPoses[ovrHand_Right].ThePose;
+		/*if (handPoses[LEFT].Position.y > 0.5f) {
+		printf("Raised LEFT\n");
+		}
+		if (handPoses[RIGHT].Position.y > 0.5f) {
+		printf("Raised RIGHT\n");
+		}
+		printf("(%f, %f, %f)\n",handPoses[LEFT].Position.x, handPoses[LEFT].Position.y, handPoses[LEFT].Position.z);
+		*/
+
+		// T R I G G E R E D
+		// finger triggers
+		if (OVR_SUCCESS(ovr_GetInputState(session, ovrControllerType_Touch, &inputstate))) {
+			fingerTriggerPressed[LEFT] = inputstate.IndexTrigger[ovrHand_Left] > 0.5f;
+			fingerTriggerPressed[RIGHT] = inputstate.IndexTrigger[ovrHand_Right] > 0.5f;
+		}
+
+		if (fingerTriggerPressed[LEFT]) {
+			printf("LEFT trigger\n");
+		}
+		if (fingerTriggerPressed[RIGHT]) {
+			printf("RIGHT trigger\n");
+		}
+
+		// haptics
+		if (fingerTriggerPressed[LEFT] && fingerTriggerPressed[RIGHT]) {
+			ovr_SetControllerVibration(session, ovrControllerType_LTouch, 0.0f, 1.0f);
+			ovr_SetControllerVibration(session, ovrControllerType_RTouch, 0.0f, 1.0f);
+		}
+		else {
+			ovr_SetControllerVibration(session, ovrControllerType_LTouch, 0.0f, 0.0f);
+			ovr_SetControllerVibration(session, ovrControllerType_RTouch, 0.0f, 0.0f);
+		}
 	}
+
+	
 
 	void update() {
 		for (Particle* particle : particles) {
 			//Update position
 			particle->transform[3] += glm::vec4(particle->velocity.x, particle->velocity.y, particle->velocity.z , 0.0f);
 			particle->transform = glm::rotate(particle->transform, 0.05f, glm::vec3(particle->rotation.x, particle->rotation.y, particle->rotation.z));
-
+			//cout << particle->transform[3].z << endl;
 			//Check walls
 			if (particle->transform[3][0] < -10 || particle->transform[3][0] > 10) {
 				particle->velocity.x *= -1;
@@ -722,7 +774,7 @@ public:
 		if (!win) {
 			//Add new particles if a second has passed
 			std::clock_t currentTime = std::clock();
-			if ((currentTime - timer) / CLOCKS_PER_SEC >= 1) {
+			/*if ((currentTime - timer) / CLOCKS_PER_SEC >= 1) {
 				Particle* p = new Particle();
 				p->model = co2;
 				p->transform = glm::scale(chimney, glm::vec3(0.4f, 0.4f, 0.4f));
@@ -732,10 +784,9 @@ public:
 
 				co2Count++;
 				timer = currentTime;
-			}
+			}*/
 		}
 
-		//Lose condition
 		if (co2Count > 10 && !lose) {
 			for (int i = 0; i < 100; i++) {
 				Particle* p = new Particle();
@@ -750,8 +801,7 @@ public:
 			lose = true;
 		}
 
-		//Win condition
-		if (co2Count == 0 && !lose && !win) {
+		if (co2Count == 0 && !lose) {
 			glClearColor(0.0f, 0.2f, 0.8f, 0.0f);
 			win = true;
 		}
@@ -780,7 +830,7 @@ protected:
 	}
 
 	void renderScene(const glm::mat4 & projection, const glm::mat4 & headPose) override {
-		cubeScene->render(projection, glm::inverse(headPose));
+		cubeScene->render(projection, glm::inverse(headPose), _session);
 	}
 };
 
