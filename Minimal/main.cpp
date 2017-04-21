@@ -647,6 +647,9 @@ struct ColorCubeScene {
 	Model* o2;
 	int co2Count = 0;
 
+	Line leftLine = Line();
+	Line rightLine = Line();
+
 	GLuint shaderProg;
 	std::vector<Particle*> particles;
 	Particle factoryParticle;
@@ -705,6 +708,20 @@ public:
 			glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &(particle->transform[0][0]));
 			particle->model->Draw(shaderProg, projection, modelview);
 		}
+
+		glm::mat4 temp = glm::mat4(1.0f);
+		temp = glm::rotate(temp, glm::vec3(handPoses[LEFT].Orientation.x, handPoses[LEFT].Orientation.y, handPoses[LEFT].Orientation.z));
+		temp = glm::translate(temp, glm::vec3(handPoses[LEFT].Position.x, handPoses[LEFT].y, handPoses[LEFT].z));
+		glUniformMatrix4fv(uTransMat, 1, GL_FALSE &(temp[0][0]));
+		leftLine.transform = temp;
+		leftLine.Draw();
+
+		temp = glm::mat4(1.0f);
+		temp = glm::rotate(temp, glm::vec3(handPoses[RIGHT].Orientation.x, handPoses[RIGHT].Orientation.y, handPoses[RIGHT].Orientation.z));
+		temp = glm::translate(temp, glm::vec3(handPoses[RIGHT].Position.x, handPoses[RIGHT].y, handPoses[RIGHT].z));
+		glUniformMatrix4fv(uTransMat, 1, GL_FALSE &(temp[0][0]));
+		rightLine.transform = temp;
+		rightLine.Draw();
 
 		update();
 	} 

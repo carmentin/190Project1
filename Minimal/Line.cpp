@@ -1,6 +1,7 @@
 #include "Line.h"
 
 Line::Line() {
+	transformation = glm::mat4(1.0f);
 	float coords[] = { 0, 0, 0, 0, 0, 5 };
 
 	glGenVertexArrays(1, &this->VAO);
