@@ -790,8 +790,7 @@ public:
 
 	void update() {
 
-		//Intersection checks
-		//bool intersection = false;
+		//Haptic feedback check
 		if (!fingerTriggerPressed[LEFT] || !fingerTriggerPressed[RIGHT] || (1000.0f * (std::clock() - vibTimer)) / CLOCKS_PER_SEC > 100.0f) {
 			ovr_SetControllerVibration(sesh, ovrControllerType_LTouch, 0.0f, 0.0f);
 			ovr_SetControllerVibration(sesh, ovrControllerType_RTouch, 0.0f, 0.0f);
@@ -848,16 +847,6 @@ public:
 				}
 			}
 		}
-
-		//Haptic feedback
-		/*if (fingerTriggerPressed[LEFT] && fingerTriggerPressed[RIGHT] && intersection) {
-			ovr_SetControllerVibration(sesh, ovrControllerType_LTouch, 0.0f, 1.0f);
-			ovr_SetControllerVibration(sesh, ovrControllerType_RTouch, 0.0f, 1.0f);
-		}
-		else {
-			ovr_SetControllerVibration(sesh, ovrControllerType_LTouch, 0.0f, 0.0f);
-			ovr_SetControllerVibration(sesh, ovrControllerType_RTouch, 0.0f, 0.0f);
-		}*/
 
 		//If index trigger pressed, red laser
 		if (inputstate.IndexTrigger[ovrHand_Left] > 0.5f) {
