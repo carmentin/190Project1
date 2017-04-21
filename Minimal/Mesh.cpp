@@ -1,7 +1,7 @@
 #include "Mesh.h"
 
 // Render the mesh
-void Mesh::Draw(GLuint shader, glm::mat4 P, glm::mat4 V)
+void Mesh::Draw(GLuint shader)
 {
 	// Bind appropriate textures
 	/*GLuint diffuseNr = 1;

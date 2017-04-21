@@ -72,7 +72,7 @@ public:
 		this->setupMesh();
 	}
 
-	void Draw(GLuint shader, glm::mat4 P, glm::mat4 V);
+	void Draw(GLuint shader);
 
 private:
 	/*  Render data  */

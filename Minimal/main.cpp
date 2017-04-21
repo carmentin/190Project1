@@ -27,6 +27,7 @@ limitations under the License.
 #include <Windows.h>
 #include "Shader.h"
 #include "Model.h"
+#include"Line.h"
 
 #define __STDC_FORMAT_MACROS 1
 #define LEFT 0
@@ -702,26 +703,26 @@ public:
 		glUseProgram(shaderProg);
 
 		glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &factoryParticle.transform[0][0]);
-		factoryParticle.model->Draw(shaderProg, projection, modelview);
+		factoryParticle.model->Draw(shaderProg);
 
 		for (Particle* particle : particles) {
 			glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &(particle->transform[0][0]));
-			particle->model->Draw(shaderProg, projection, modelview);
+			particle->model->Draw(shaderProg);
 		}
 
 		glm::mat4 temp = glm::mat4(1.0f);
-		temp = glm::rotate(temp, glm::vec3(handPoses[LEFT].Orientation.x, handPoses[LEFT].Orientation.y, handPoses[LEFT].Orientation.z));
-		temp = glm::translate(temp, glm::vec3(handPoses[LEFT].Position.x, handPoses[LEFT].y, handPoses[LEFT].z));
-		glUniformMatrix4fv(uTransMat, 1, GL_FALSE &(temp[0][0]));
+		temp = glm::rotate(temp, handPoses[LEFT].Orientation.w, glm::vec3(handPoses[LEFT].Orientation.x, handPoses[LEFT].Orientation.y, handPoses[LEFT].Orientation.z));
+		temp = glm::translate(temp, glm::vec3(handPoses[LEFT].Position.x, handPoses[LEFT].Position.y, handPoses[LEFT].Position.z));
+		glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &(temp[0][0]));
 		leftLine.transform = temp;
-		leftLine.Draw();
+		leftLine.Draw(shaderProg);
 
 		temp = glm::mat4(1.0f);
-		temp = glm::rotate(temp, glm::vec3(handPoses[RIGHT].Orientation.x, handPoses[RIGHT].Orientation.y, handPoses[RIGHT].Orientation.z));
-		temp = glm::translate(temp, glm::vec3(handPoses[RIGHT].Position.x, handPoses[RIGHT].y, handPoses[RIGHT].z));
-		glUniformMatrix4fv(uTransMat, 1, GL_FALSE &(temp[0][0]));
+		temp = glm::rotate(temp, handPoses[RIGHT].Orientation.w, glm::vec3(handPoses[RIGHT].Orientation.x, handPoses[RIGHT].Orientation.y, handPoses[RIGHT].Orientation.z));
+		temp = glm::translate(temp, glm::vec3(handPoses[RIGHT].Position.x, handPoses[RIGHT].Position.y, handPoses[RIGHT].Position.z));
+		glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &(temp[0][0]));
 		rightLine.transform = temp;
-		rightLine.Draw();
+		rightLine.Draw(shaderProg);
 
 		update();
 	} 
