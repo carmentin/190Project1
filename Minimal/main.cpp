@@ -48,6 +48,8 @@ limitations under the License.
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <math.h>
+#include "Extras/OVR_Math.h"
 
 // Import the most commonly used types into the default namespace
 using glm::ivec3;
@@ -646,14 +648,16 @@ struct ColorCubeScene {
 	Model* factory;
 	Model* co2;
 	Model* o2;
+	Model* greenLaser;
+	Model* redLaser;
 	int co2Count = 0;
 
-	Line leftLine = Line();
-	Line rightLine = Line();
 
 	GLuint shaderProg;
 	std::vector<Particle*> particles;
 	Particle factoryParticle;
+	Particle leftLaser;
+	Particle rightLaser;
 
 	std::clock_t timer;
 	bool win = false;
@@ -675,10 +679,18 @@ public:
 	ColorCubeScene() : cube({ "Position", "Normal" }, oglplus::shapes::Cube()) {
 		shaderProg = LoadShaders("shader.vert", "shader.frag");
 		factory = new Model("../Project1-assets/factory4/factory4.obj");
+		//factory2 = new Model("../Project1-assets/factory2/factory2.obj");
 		co2 = new Model("../Project1-assets/co2/co2.obj");
 		o2 = new Model("../Project1-assets/o2/o2.obj");
+		greenLaser = new Model("../Project1-assets/cylinder/cylinder_green.obj");
+		redLaser = new Model("../Project1-assets/cylinder/cylinder_red.obj");
+
+
+		//rightLine = new Line();
 		factoryParticle.model = factory;
 		factoryParticle.transform = glm::scale(chimney, glm::vec3(0.2f, 0.2f, 0.2f));
+		leftLaser.model = greenLaser;
+		rightLaser.model = greenLaser;
 		/*for (int i = 0; i < 5; i++) {
 			Particle* p = new Particle();
 			p->model = co2;
@@ -687,20 +699,49 @@ public:
 			p->rotation = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50));
 			particles.push_back(p);
 		}
-		co2Count = 5;*/	
+		co2Count = 5;*/
 		timer = std::clock();
 	}
 
 	void render(const mat4 & projection, const mat4 & modelview, ovrSession session) {
 		getControllerData(session);
+		glUseProgram(shaderProg);
 
 		GLuint uProjection = glGetUniformLocation(shaderProg, "projection");
 		GLuint uModelview = glGetUniformLocation(shaderProg, "modelview");
 		GLuint uTransMat = glGetUniformLocation(shaderProg, "transMat");
+
 		glUniformMatrix4fv(uProjection, 1, GL_FALSE, (&projection[0][0]));
 		glUniformMatrix4fv(uModelview, 1, GL_FALSE, &(modelview[0][0]));
 
-		glUseProgram(shaderProg);
+		//LEFT HAND-----------------------------------------------------------
+		/*float yawy, pitchx, rollz;
+		OVR::Quatf leftori = handPoses[LEFT].Orientation;
+		leftori.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&yawy, &pitchx, &rollz);*/
+
+		glm::quat q = ovr::toGlm(handPoses[LEFT].Orientation);
+		glm::mat4 rotmat = glm::toMat4(q);
+
+		glm::mat4 lasertransform;
+		lasertransform = glm::translate(lasertransform, glm::vec3(handPoses[LEFT].Position.x, handPoses[LEFT].Position.y, handPoses[LEFT].Position.z));
+		lasertransform = lasertransform * rotmat;
+		lasertransform = glm::scale(lasertransform, glm::vec3(0.01f, 0.01f, -10.f));
+		glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &lasertransform[0][0]);
+		leftLaser.transform = lasertransform;
+		leftLaser.model->Draw(shaderProg);
+
+
+		//RIGHT HAND----------------------------------------------------------
+		q = ovr::toGlm(handPoses[RIGHT].Orientation);
+		rotmat = glm::toMat4(q);
+
+		lasertransform = glm::mat4(1.0f);
+		lasertransform = glm::translate(lasertransform, glm::vec3(handPoses[RIGHT].Position.x, handPoses[RIGHT].Position.y, handPoses[RIGHT].Position.z));
+		lasertransform = lasertransform * rotmat;
+		lasertransform = glm::scale(lasertransform, glm::vec3(0.01f, 0.01f, -10.f));
+		glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &lasertransform[0][0]);
+		rightLaser.transform = lasertransform;
+		rightLaser.model->Draw(shaderProg);
 
 		glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &factoryParticle.transform[0][0]);
 		factoryParticle.model->Draw(shaderProg);
@@ -709,20 +750,7 @@ public:
 			glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &(particle->transform[0][0]));
 			particle->model->Draw(shaderProg);
 		}
-
-		glm::mat4 temp = glm::mat4(1.0f);
-		temp = glm::rotate(temp, handPoses[LEFT].Orientation.w, glm::vec3(handPoses[LEFT].Orientation.x, handPoses[LEFT].Orientation.y, handPoses[LEFT].Orientation.z));
-		temp = glm::translate(temp, glm::vec3(handPoses[LEFT].Position.x, handPoses[LEFT].Position.y, handPoses[LEFT].Position.z));
-		glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &(temp[0][0]));
-		leftLine.transform = temp;
-		leftLine.Draw(shaderProg);
-
-		temp = glm::mat4(1.0f);
-		temp = glm::rotate(temp, handPoses[RIGHT].Orientation.w, glm::vec3(handPoses[RIGHT].Orientation.x, handPoses[RIGHT].Orientation.y, handPoses[RIGHT].Orientation.z));
-		temp = glm::translate(temp, glm::vec3(handPoses[RIGHT].Position.x, handPoses[RIGHT].Position.y, handPoses[RIGHT].Position.z));
-		glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &(temp[0][0]));
-		rightLine.transform = temp;
-		rightLine.Draw(shaderProg);
+				
 
 		update();
 	} 
@@ -735,14 +763,7 @@ public:
 
 		handPoses[LEFT] = trackstate.HandPoses[ovrHand_Left].ThePose;
 		handPoses[RIGHT] = trackstate.HandPoses[ovrHand_Right].ThePose;
-		/*if (handPoses[LEFT].Position.y > 0.5f) {
-		printf("Raised LEFT\n");
-		}
-		if (handPoses[RIGHT].Position.y > 0.5f) {
-		printf("Raised RIGHT\n");
-		}
-		printf("(%f, %f, %f)\n",handPoses[LEFT].Position.x, handPoses[LEFT].Position.y, handPoses[LEFT].Position.z);
-		*/
+
 
 		// T R I G G E R E D
 		// finger triggers
@@ -757,6 +778,9 @@ public:
 		if (fingerTriggerPressed[RIGHT]) {
 			printf("RIGHT trigger\n");
 		}
+		if (inputstate.Buttons != 0) {
+			printf("BUTTONS PRESSED\n");
+		}
 
 		// haptics
 		if (fingerTriggerPressed[LEFT] && fingerTriggerPressed[RIGHT]) {
@@ -768,8 +792,6 @@ public:
 			ovr_SetControllerVibration(session, ovrControllerType_RTouch, 0.0f, 0.0f);
 		}
 	}
-
-	
 
 	void update() {
 		for (Particle* particle : particles) {
@@ -788,11 +810,26 @@ public:
 				particle->velocity.z *= -1;
 			}
 		}
+
+		//If index trigger pressed, red laser
+		if (inputstate.IndexTrigger[ovrHand_Left] > 0.5f) {
+			leftLaser.model = redLaser;
+		}
+		//Else green laser
+		else {
+			leftLaser.model = greenLaser;
+		}
+		if (inputstate.IndexTrigger[ovrHand_Right] > 0.5f) {
+			rightLaser.model = redLaser;
+		}
+		else {
+			rightLaser.model = greenLaser;
+		}
 		
+		//Add particles if haven't won and a second has passed
 		if (!win) {
-			//Add new particles if a second has passed
 			std::clock_t currentTime = std::clock();
-			/*if ((currentTime - timer) / CLOCKS_PER_SEC >= 1) {
+		/*	if ((currentTime - timer) / CLOCKS_PER_SEC >= 1) {
 				Particle* p = new Particle();
 				p->model = co2;
 				p->transform = glm::scale(chimney, glm::vec3(0.4f, 0.4f, 0.4f));
@@ -805,6 +842,7 @@ public:
 			}*/
 		}
 
+		//Loss case
 		if (co2Count > 10 && !lose) {
 			for (int i = 0; i < 100; i++) {
 				Particle* p = new Particle();
@@ -819,9 +857,28 @@ public:
 			lose = true;
 		}
 
+		//Win case
 		if (co2Count == 0 && !lose) {
 			glClearColor(0.0f, 0.2f, 0.8f, 0.0f);
 			win = true;
+		}
+
+		//Game reset
+		if ((win || lose) && inputstate.Buttons != 0) {
+			win = false;
+			lose = false;
+			particles = std::vector<Particle*>();
+			for (int i = 0; i < 5; i++) {
+			Particle* p = new Particle();
+			p->model = co2;
+			p->transform = glm::scale(chimney, glm::vec3(0.4f, 0.4f, 0.4f));
+			p->velocity = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.0f), fmod(rand(), 100.0f) - 50)) / 100.0f;
+			p->rotation = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50));
+			particles.push_back(p);
+			}
+			co2Count = 5;
+
+			glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
 		}
 	}
 };

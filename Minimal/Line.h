@@ -4,7 +4,10 @@
 
 class Line {
 public:
-	Line();
+	vector <float> coords;
+
+	Line(vector <GLfloat> coords);
+
 	void Draw(GLuint shader);
 
 	glm::mat4 transform;
