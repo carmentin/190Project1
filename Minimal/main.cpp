@@ -660,6 +660,7 @@ struct ColorCubeScene {
 	Particle rightLaser;
 
 	std::clock_t timer;
+	std::clock_t vibTimer;
 	bool win = false;
 	bool lose = false;
 
@@ -670,6 +671,8 @@ struct ColorCubeScene {
 	ovrPosef handPoses[2];
 	ovrInputState inputstate;
 	bool fingerTriggerPressed[2] = { false, false };
+
+	ovrSession sesh; //Needed for haptic feedback
 
 	// VBOs for the cube's vertices and normals
 
@@ -691,15 +694,15 @@ public:
 		factoryParticle.transform = glm::scale(chimney, glm::vec3(0.2f, 0.2f, 0.2f));
 		leftLaser.model = greenLaser;
 		rightLaser.model = greenLaser;
-		/*for (int i = 0; i < 5; i++) {
+		for (int i = 0; i < 5; i++) {
 			Particle* p = new Particle();
 			p->model = co2;
-			p->transform = glm::scale(chimney, glm::vec3(0.4f, 0.4f, 0.4f));
+			p->transform = glm::scale(chimney, glm::vec3(0.3f));
 			p->velocity = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.0f), fmod(rand(), 100.0f) - 50)) / 100.0f;
 			p->rotation = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50));
 			particles.push_back(p);
 		}
-		co2Count = 5;*/
+		co2Count = 5;
 		timer = std::clock();
 	}
 
@@ -725,7 +728,7 @@ public:
 		glm::mat4 lasertransform;
 		lasertransform = glm::translate(lasertransform, glm::vec3(handPoses[LEFT].Position.x, handPoses[LEFT].Position.y, handPoses[LEFT].Position.z));
 		lasertransform = lasertransform * rotmat;
-		lasertransform = glm::scale(lasertransform, glm::vec3(0.01f, 0.01f, -10.f));
+		lasertransform = glm::scale(lasertransform, glm::vec3(0.01f, 0.01f, -20.f));
 		glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &lasertransform[0][0]);
 		leftLaser.transform = lasertransform;
 		leftLaser.model->Draw(shaderProg);
@@ -738,7 +741,7 @@ public:
 		lasertransform = glm::mat4(1.0f);
 		lasertransform = glm::translate(lasertransform, glm::vec3(handPoses[RIGHT].Position.x, handPoses[RIGHT].Position.y, handPoses[RIGHT].Position.z));
 		lasertransform = lasertransform * rotmat;
-		lasertransform = glm::scale(lasertransform, glm::vec3(0.01f, 0.01f, -10.f));
+		lasertransform = glm::scale(lasertransform, glm::vec3(0.01f, 0.01f, -20.f));
 		glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &lasertransform[0][0]);
 		rightLaser.transform = lasertransform;
 		rightLaser.model->Draw(shaderProg);
@@ -772,7 +775,9 @@ public:
 			fingerTriggerPressed[RIGHT] = inputstate.IndexTrigger[ovrHand_Right] > 0.5f;
 		}
 
-		if (fingerTriggerPressed[LEFT]) {
+		sesh = session;
+
+		/*if (fingerTriggerPressed[LEFT]) {
 			printf("LEFT trigger\n");
 		}
 		if (fingerTriggerPressed[RIGHT]) {
@@ -780,20 +785,17 @@ public:
 		}
 		if (inputstate.Buttons != 0) {
 			printf("BUTTONS PRESSED\n");
-		}
-
-		// haptics
-		if (fingerTriggerPressed[LEFT] && fingerTriggerPressed[RIGHT]) {
-			ovr_SetControllerVibration(session, ovrControllerType_LTouch, 0.0f, 1.0f);
-			ovr_SetControllerVibration(session, ovrControllerType_RTouch, 0.0f, 1.0f);
-		}
-		else {
-			ovr_SetControllerVibration(session, ovrControllerType_LTouch, 0.0f, 0.0f);
-			ovr_SetControllerVibration(session, ovrControllerType_RTouch, 0.0f, 0.0f);
-		}
+		}*/
 	}
 
 	void update() {
+
+		//Haptic feedback check
+		if (!fingerTriggerPressed[LEFT] || !fingerTriggerPressed[RIGHT] || (1000.0f * (std::clock() - vibTimer)) / CLOCKS_PER_SEC > 100.0f) {
+			ovr_SetControllerVibration(sesh, ovrControllerType_LTouch, 0.0f, 0.0f);
+			ovr_SetControllerVibration(sesh, ovrControllerType_RTouch, 0.0f, 0.0f);
+		}
+
 		for (Particle* particle : particles) {
 			//Update position
 			particle->transform[3] += glm::vec4(particle->velocity.x, particle->velocity.y, particle->velocity.z , 0.0f);
@@ -808,6 +810,41 @@ public:
 			}
 			if (particle->transform[3][2] < -25 || particle->transform[3][2] > -5) {
 				particle->velocity.z *= -1;
+			}
+
+			//If CO2 and intersected, change model to O2
+			if (particle->model == co2 && leftLaser.model == redLaser && rightLaser.model == redLaser) {
+				bool left = false;
+				bool right = false;
+
+				//Check left intersection
+				//Get two points on the line
+				glm::vec3 start = glm::vec3(leftLaser.transform[3].x, leftLaser.transform[3].y, leftLaser.transform[3].z);
+				glm::vec4 endToTrans = glm::vec4(0, 0, -1, 1);
+				endToTrans = leftLaser.transform * endToTrans;
+				glm::vec3 endPt = glm::vec3(endToTrans.x, endToTrans.y, endToTrans.z);
+				glm::vec3 particleCenter = glm::vec3(particle->transform[3]);
+				//Point-line dist
+				float dist = glm::length(glm::cross(endPt - start, start - particleCenter)) / glm::length(endPt - start);
+				if (dist <= 0.3f) left = true;
+
+				//Check right intersection
+				//Get two points on the line
+				start = glm::vec3(rightLaser.transform[3].x, rightLaser.transform[3].y, rightLaser.transform[3].z);
+				endToTrans = glm::vec4(0, 0, -1, 1);
+				endToTrans = rightLaser.transform * endToTrans;
+				endPt = glm::vec3(endToTrans.x, endToTrans.y, endToTrans.z);
+				//Point-line dist
+				dist = glm::length(glm::cross(endPt - start, start - particleCenter)) / glm::length(endPt - start);
+				if (dist <= 0.3f) right = true;
+
+				if (left && right) {
+					particle->model = o2;
+					ovr_SetControllerVibration(sesh, ovrControllerType_LTouch, 0.0f, 1.0f);
+					ovr_SetControllerVibration(sesh, ovrControllerType_RTouch, 0.0f, 1.0f);
+					vibTimer = std::clock();
+					co2Count--;
+				}
 			}
 		}
 
@@ -829,17 +866,17 @@ public:
 		//Add particles if haven't won and a second has passed
 		if (!win) {
 			std::clock_t currentTime = std::clock();
-		/*	if ((currentTime - timer) / CLOCKS_PER_SEC >= 1) {
+			if ((currentTime - timer) / CLOCKS_PER_SEC >= 1) {
 				Particle* p = new Particle();
 				p->model = co2;
-				p->transform = glm::scale(chimney, glm::vec3(0.4f, 0.4f, 0.4f));
+				p->transform = glm::scale(chimney, glm::vec3(0.3f));
 				p->velocity = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.0f), fmod(rand(), 100.0f) - 50)) / 100.0f;
 				p->rotation = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50));
 				particles.push_back(p);
 
 				co2Count++;
 				timer = currentTime;
-			}*/
+			}
 		}
 
 		//Loss case
@@ -848,7 +885,7 @@ public:
 				Particle* p = new Particle();
 				p->model = co2;
 				p->transform = glm::translate(glm::vec3(fmod(rand(), 20) - 10, fmod(rand(), 20) - 10, fmod(rand(), 20) - 25));
-				p->transform = glm::scale(p->transform, glm::vec3(0.4f, 0.4f, 0.4f));
+				p->transform = glm::scale(p->transform, glm::vec3(0.3f));
 				p->velocity = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.0f), fmod(rand(), 100.0f) - 50)) / 100.0f;
 				p->rotation = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50));
 				particles.push_back(p);
@@ -871,7 +908,7 @@ public:
 			for (int i = 0; i < 5; i++) {
 			Particle* p = new Particle();
 			p->model = co2;
-			p->transform = glm::scale(chimney, glm::vec3(0.4f, 0.4f, 0.4f));
+			p->transform = glm::scale(chimney, glm::vec3(0.3f));
 			p->velocity = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.0f), fmod(rand(), 100.0f) - 50)) / 100.0f;
 			p->rotation = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50));
 			particles.push_back(p);
