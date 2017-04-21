@@ -3,13 +3,9 @@
 // Render the mesh
 void Mesh::Draw(GLuint shader, glm::mat4 P, glm::mat4 V)
 {
-	glm::mat4 modelview = V * glm::mat4(1.0f);
-	GLuint uProjection = glGetUniformLocation(shader, "projection");
-	GLuint uModelview = glGetUniformLocation(shader, "modelview");
-	glUniformMatrix4fv(uProjection, 1, GL_FALSE, (&P[0][0]));
-	glUniformMatrix4fv(uModelview, 1, GL_FALSE, &(V[0][0]));
-	GLuint uTransMat = glGetUniformLocation(shader, "transMat");
-	glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &(glm::mat4(0.3, 0, 0, 0, 0, 0.3, 0, 0, 0, 0, 0.3, 0, 0, 5, -20, 1.0f)[0][0]));
+	//glm::mat4 modelview = V * glm::mat4(1.0f);
+	
+	
 	// Bind appropriate textures
 	/*GLuint diffuseNr = 1;
 	GLuint specularNr = 1;
@@ -32,18 +28,11 @@ void Mesh::Draw(GLuint shader, glm::mat4 P, glm::mat4 V)
 	}*/
 
 	// Also set each mesh's shininess property to a default value (if you want you could extend this to another mesh property and possibly change this value)
-	aiColor3D diffuse, specular, ambient, emission;
-	mtl->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
-	mtl->Get(AI_MATKEY_COLOR_SPECULAR, specular);
-	mtl->Get(AI_MATKEY_COLOR_AMBIENT, ambient);
-	mtl->Get(AI_MATKEY_COLOR_EMISSIVE, emission);
-	glUniform3f(glGetUniformLocation(shader, "material.diffuse"), diffuse.r, diffuse.g, diffuse.b);
-	glUniform3f(glGetUniformLocation(shader, "material.specular"), specular.r, specular.g, specular.b);
-	glUniform3f(glGetUniformLocation(shader, "material.ambient"), ambient.r, ambient.g, ambient.b);
-	glUniform3f(glGetUniformLocation(shader, "material.emission"), emission.r, emission.g, emission.b);
-	float shininess;
-	mtl->Get(AI_MATKEY_SHININESS, shininess);
-	glUniform1f(glGetUniformLocation(shader, "material.shininess"), shininess);
+	glUniform3f(glGetUniformLocation(shader, "material.diffuse"), mtl.diffuse.x, mtl.diffuse.y, mtl.diffuse.z);
+	glUniform3f(glGetUniformLocation(shader, "material.specular"), mtl.specular.x, mtl.specular.y, mtl.specular.z);
+	glUniform3f(glGetUniformLocation(shader, "material.ambient"), mtl.ambient.x, mtl.ambient.y, mtl.ambient.z);
+	glUniform3f(glGetUniformLocation(shader, "material.emission"), mtl.emission.x, mtl.emission.y, mtl.emission.z);
+	glUniform1f(glGetUniformLocation(shader, "material.shininess"), mtl.shininess);
 
 	// Draw mesh
 	glBindVertexArray(this->VAO);

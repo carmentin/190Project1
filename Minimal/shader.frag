@@ -32,6 +32,6 @@ void main()
     //vec3 specular = light.specular * (spec * material.specular);  
         
     //vec3 result = ambient + diffuse + specular + emission;
-	vec3 result = material.ambient + material.emission;
-    color = vec4(result, 1.0f);
+	vec3 result = material.ambient + material.emission + material.diffuse;
+    color = vec4(material.diffuse, 1.0f);
 } 

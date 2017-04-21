@@ -622,6 +622,12 @@ namespace Attribute {
 	};
 }
 
+struct Particle {
+	Model* model;
+	glm::mat4 transform;
+	glm::vec3 velocity;
+};
+
 // a class for encapsulating building and rendering an RGB cube
 struct ColorCubeScene {
 
@@ -631,9 +637,17 @@ struct ColorCubeScene {
 	oglplus::VertexArray vao;
 	GLuint instanceCount;
 	oglplus::Buffer instances;
-	//Shader shader;
+
 	Model* factory;
+	Model* co2;
+	Model* o2;
+	int co2Count = 0;
+
 	GLuint shaderProg;
+	std::vector<Particle> particles;
+	Particle factoryParticle;
+
+	glm::mat4 chimney = glm::mat4(1.0f, 0, 0, 0, 0, 1.0f, 0, 0, 0, 0, 1.0f, 0, 0, -1, -10, 1.0f);
 
 	// VBOs for the cube's vertices and normals
 
@@ -641,75 +655,46 @@ struct ColorCubeScene {
 
 public:
 	ColorCubeScene() : cube({ "Position", "Normal" }, oglplus::shapes::Cube()) {
-		/*using namespace oglplus;
-		try {
-			// attach the shaders to the program
-			prog.AttachShader(
-				FragmentShader()
-				.Source(GLSLSource(String(FRAGMENT_SHADER)))
-				.Compile()
-			);
-			prog.AttachShader(
-				VertexShader()
-				.Source(GLSLSource(String(VERTEX_SHADER)))
-				.Compile()
-			);
-			prog.Link();
-		}
-		catch (ProgramBuildError & err) {
-			FAIL((const char*)err.what());
-		}
-
-		// link and use it
-		prog.Use();
-
-		vao = cube.VAOForProgram(prog);
-		vao.Bind();
-		// Create a cube of cubes
-		{
-			std::vector<mat4> instance_positions;
-			for (unsigned int z = 0; z < GRID_SIZE; ++z) {
-				for (unsigned int y = 0; y < GRID_SIZE; ++y) {
-					for (unsigned int x = 0; x < GRID_SIZE; ++x) {
-						int xpos = (x - (GRID_SIZE / 2)) * 2;
-						int ypos = (y - (GRID_SIZE / 2)) * 2;
-						int zpos = (z - (GRID_SIZE / 2)) * 2;
-						vec3 relativePosition = vec3(xpos, ypos, zpos);
-						if (relativePosition == vec3(0)) {
-							continue;
-						}
-						instance_positions.push_back(glm::translate(glm::mat4(1.0f), relativePosition));
-					}
-				}
-			}
-
-			Context::Bound(Buffer::Target::Array, instances).Data(instance_positions);
-			instanceCount = (GLuint)instance_positions.size();
-			int stride = sizeof(mat4);
-			for (int i = 0; i < 4; ++i) {
-				VertexArrayAttrib instance_attr(prog, Attribute::InstanceTransform + i);
-				size_t offset = sizeof(vec4) * i;
-				instance_attr.Pointer(4, DataType::Float, false, stride, (void*)offset);
-				instance_attr.Divisor(1);
-				instance_attr.Enable();
-			}
-		}*/
-
-		//shader = Shader("shader.vert", "shader.frag");
 		shaderProg = LoadShaders("shader.vert", "shader.frag");
 		factory = new Model("../Project1-assets/factory4/factory4.obj");
+		co2 = new Model("../Project1-assets/co2/co2.obj");
+		o2 = new Model("../Project1-assets/o2/o2.obj");
+		factoryParticle.model = factory;
+		factoryParticle.transform = glm::scale(chimney, glm::vec3(0.2f, 0.2f, 0.2f));
+		for (int i = 0; i < 5; i++) {
+			Particle p;
+			p.model = co2;
+			p.transform = glm::scale(chimney, glm::vec3(0.4f, 0.4f, 0.4f));
+			p.velocity = glm::vec3(rand() % 2, abs(rand() % 3), rand() % 2);
+			particles.push_back(p);
+		}
 	}
 
 	void render(const mat4 & projection, const mat4 & modelview) {
-		/*using namespace oglplus;
-		prog.Use();
-		Uniform<mat4>(prog, "ProjectionMatrix").Set(projection);
-		Uniform<mat4>(prog, "CameraMatrix").Set(modelview);
-		vao.Bind();*/
-		//cube.Draw(instanceCount);
-		//shader.Use();
+		GLuint uProjection = glGetUniformLocation(shaderProg, "projection");
+		GLuint uModelview = glGetUniformLocation(shaderProg, "modelview");
+		glUniformMatrix4fv(uProjection, 1, GL_FALSE, (&projection[0][0]));
+		glUniformMatrix4fv(uModelview, 1, GL_FALSE, &(modelview[0][0]));
+
 		glUseProgram(shaderProg);
-		factory->Draw(shaderProg, projection, modelview);
+
+		GLuint uTransMat = glGetUniformLocation(shaderProg, "transMat");
+		//glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &(glm::mat4(0.3, 0, 0, 0, 0, 0.3, 0, 0, 0, 0, 0.3, 0, 0, -1, -10, 1.0f)[0][0]));
+		glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &factoryParticle.transform[0][0]);
+		factoryParticle.model->Draw(shaderProg, projection, modelview);
+
+		for (std::vector<Particle>::iterator it = particles.begin(); it != particles.end(); it++) {
+			glUniformMatrix4fv(uTransMat, 1, GL_FALSE, &(it->transform[0][0]));
+			it->model->Draw(shaderProg, projection, modelview);
+		}
+
+		update();
+	}
+
+	void update() {
+		for (std::vector<Particle>::iterator it = particles.begin(); it != particles.end(); it++) {
+			it->transform = glm::translate(it->transform, it->velocity);
+		}
 	}
 };
 

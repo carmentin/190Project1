@@ -83,7 +83,7 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 			indices.push_back(face.mIndices[j]);
 	}
 	// Process materials
-	if (mesh->mMaterialIndex >= 0)
+	/*if (mesh->mMaterialIndex >= 0)
 	{
 		aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 		// We assume a convention for sampler names in the shaders. Each diffuse texture should be named
@@ -94,13 +94,14 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 		// Normal: texture_normalN
 
 		// 1. Diffuse maps
-		/*vector<Texture> diffuseMaps = this->loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
+		vector<Texture> diffuseMaps = this->loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
 		textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
 		// 2. Specular maps
 		vector<Texture> specularMaps = this->loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
-		textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());*/
-	}
+		textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+	}*/
+	aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
 	// Return a mesh object created from the extracted mesh data
-	return Mesh(vertices, indices, textures, scene->mMaterials[mesh->mMaterialIndex]);
+	return Mesh(vertices, indices, textures, material);
 }

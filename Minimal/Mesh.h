@@ -33,13 +33,21 @@ struct Texture {
 	aiString path;
 };
 
+struct Material {
+	glm::vec3 ambient;
+	glm::vec3 diffuse;
+	glm::vec3 specular;
+	glm::vec3 emission;
+	float shininess;
+};
+
 class Mesh {
 public:
 	/*  Mesh Data  */
 	vector<Vertex> vertices;
 	vector<GLuint> indices;
 	vector<Texture> textures;	
-	aiMaterial* mtl;
+	Material mtl;
 
 	/*  Functions  */
 	// Constructor
@@ -48,7 +56,17 @@ public:
 		this->vertices = vertices;
 		this->indices = indices;
 		this->textures = textures;
-		this->mtl = mtl;
+		aiColor3D ambient, diffuse, specular, emission;
+		mtl->Get(AI_MATKEY_COLOR_AMBIENT, ambient);
+		mtl->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
+		mtl->Get(AI_MATKEY_COLOR_SPECULAR, specular);
+		mtl->Get(AI_MATKEY_COLOR_EMISSIVE, emission);
+		this->mtl.ambient = glm::vec3(ambient.r, ambient.g, ambient.b);
+		this->mtl.diffuse = glm::vec3(diffuse.r, diffuse.g, diffuse.b);
+		this->mtl.specular = glm::vec3(specular.r, specular.g, specular.b);
+		this->mtl.emission = glm::vec3(emission.r, emission.g, emission.b);
+		mtl->Get(AI_MATKEY_SHININESS, this->mtl.shininess);
+
 
 		// Now that we have all the required data, set the vertex buffers and its attribute pointers.
 		this->setupMesh();
