@@ -3,9 +3,6 @@
 // Render the mesh
 void Mesh::Draw(GLuint shader, glm::mat4 P, glm::mat4 V)
 {
-	//glm::mat4 modelview = V * glm::mat4(1.0f);
-	
-	
 	// Bind appropriate textures
 	/*GLuint diffuseNr = 1;
 	GLuint specularNr = 1;

@@ -27,6 +27,7 @@ limitations under the License.
 #include <Windows.h>
 #include "Shader.h"
 #include "Model.h"
+#include "Line.h"
 
 #define __STDC_FORMAT_MACROS 1
 
@@ -667,7 +668,7 @@ public:
 		o2 = new Model("../Project1-assets/o2/o2.obj");
 		factoryParticle.model = factory;
 		factoryParticle.transform = glm::scale(chimney, glm::vec3(0.2f, 0.2f, 0.2f));
-		/*for (int i = 0; i < 5; i++) {
+		for (int i = 0; i < 5; i++) {
 			Particle* p = new Particle();
 			p->model = co2;
 			p->transform = glm::scale(chimney, glm::vec3(0.4f, 0.4f, 0.4f));
@@ -675,7 +676,7 @@ public:
 			p->rotation = glm::normalize(glm::vec3(fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50, fmod(rand(), 100.f) - 50));
 			particles.push_back(p);
 		}
-		co2Count = 5;*/
+		co2Count = 5;
 
 		timer = std::clock();
 	}
@@ -705,7 +706,7 @@ public:
 			//Update position
 			particle->transform[3] += glm::vec4(particle->velocity.x, particle->velocity.y, particle->velocity.z , 0.0f);
 			particle->transform = glm::rotate(particle->transform, 0.05f, glm::vec3(particle->rotation.x, particle->rotation.y, particle->rotation.z));
-			//cout << particle->transform[3].z << endl;
+
 			//Check walls
 			if (particle->transform[3][0] < -10 || particle->transform[3][0] > 10) {
 				particle->velocity.x *= -1;
@@ -721,7 +722,7 @@ public:
 		if (!win) {
 			//Add new particles if a second has passed
 			std::clock_t currentTime = std::clock();
-			/*if ((currentTime - timer) / CLOCKS_PER_SEC >= 1) {
+			if ((currentTime - timer) / CLOCKS_PER_SEC >= 1) {
 				Particle* p = new Particle();
 				p->model = co2;
 				p->transform = glm::scale(chimney, glm::vec3(0.4f, 0.4f, 0.4f));
@@ -731,9 +732,10 @@ public:
 
 				co2Count++;
 				timer = currentTime;
-			}*/
+			}
 		}
 
+		//Lose condition
 		if (co2Count > 10 && !lose) {
 			for (int i = 0; i < 100; i++) {
 				Particle* p = new Particle();
@@ -748,7 +750,8 @@ public:
 			lose = true;
 		}
 
-		if (co2Count == 0 && !lose) {
+		//Win condition
+		if (co2Count == 0 && !lose && !win) {
 			glClearColor(0.0f, 0.2f, 0.8f, 0.0f);
 			win = true;
 		}
