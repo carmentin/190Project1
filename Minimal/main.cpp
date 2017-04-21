@@ -560,11 +560,15 @@ protected:
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo);
 		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, curTexId, 0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		vec3 eyepos = { (eyePoses[0].Position.x + eyePoses[1].Position.x) / 2,
+			(eyePoses[0].Position.y + eyePoses[1].Position.y) / 2,
+			(eyePoses[0].Position.z + eyePoses[1].Position.z) / 2 };
+
 		ovr::for_each_eye([&](ovrEyeType eye) {
 			const auto& vp = _sceneLayer.Viewport[eye];
 			glViewport(vp.Pos.x, vp.Pos.y, vp.Size.w, vp.Size.h);
 			_sceneLayer.RenderPose[eye] = eyePoses[eye];
-			renderScene(_eyeProjections[eye], ovr::toGlm(eyePoses[eye]));
+			renderScene(_eyeProjections[eye], ovr::toGlm(eyePoses[eye]), eyepos);
 		});
 		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
@@ -580,7 +584,7 @@ protected:
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 	}
 
-	virtual void renderScene(const glm::mat4 & projection, const glm::mat4 & headPose) = 0;
+	virtual void renderScene(const glm::mat4 & projection, const glm::mat4 & headPose, glm::vec3 eyepos) = 0;
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -706,16 +710,18 @@ public:
 		timer = std::clock();
 	}
 
-	void render(const mat4 & projection, const mat4 & modelview, ovrSession session) {
+	void render(const mat4 & projection, const mat4 & modelview, ovrSession session, glm::vec3 eyepos) {
 		getControllerData(session);
 		glUseProgram(shaderProg);
 
 		GLuint uProjection = glGetUniformLocation(shaderProg, "projection");
-		GLuint uModelview = glGetUniformLocation(shaderProg, "modelview");
-		GLuint uTransMat = glGetUniformLocation(shaderProg, "transMat");
+		GLuint uModelview = glGetUniformLocation(shaderProg, "view");
+		GLuint uTransMat = glGetUniformLocation(shaderProg, "model");
+		GLuint uEyePos = glGetUniformLocation(shaderProg, "eyepos");
 
 		glUniformMatrix4fv(uProjection, 1, GL_FALSE, (&projection[0][0]));
 		glUniformMatrix4fv(uModelview, 1, GL_FALSE, &(modelview[0][0]));
+		glUniform3f(uEyePos, eyepos.x, eyepos.y, eyepos.z);
 
 		//LEFT HAND-----------------------------------------------------------
 		/*float yawy, pitchx, rollz;
@@ -941,8 +947,8 @@ protected:
 		cubeScene.reset();
 	}
 
-	void renderScene(const glm::mat4 & projection, const glm::mat4 & headPose) override {
-		cubeScene->render(projection, glm::inverse(headPose), _session);
+	void renderScene(const glm::mat4 & projection, const glm::mat4 & headPose, glm::vec3 eyepos) override {
+		cubeScene->render(projection, glm::inverse(headPose), _session, eyepos);
 	}
 };
 
